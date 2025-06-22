@@ -1,151 +1,188 @@
--- Procedure to Create a User Profile
-CREATE OR REPLACE PROCEDURE createUserProfile(
+CREATE OR REPLACE PROCEDURE CREATE_POST (
+    p_content IN VARCHAR2,
+    p_user_id IN NUMBER
+) IS
+    v_post_id NUMBER;
+BEGIN
+    -- First insert the post with all fields set to 0
+    INSERT INTO post(
+        content, 
+        userid, 
+        postdate, 
+        likescount, 
+        commentscount, 
+        engagementrate
+    ) VALUES (
+        p_content, 
+        p_user_id, 
+        SYSDATE, 
+        0, 
+        0, 
+        0
+    )
+    RETURNING postid INTO v_post_id;
+    
+    -- Double-check and ensure engagement rate is 0
+    UPDATE post
+    SET engagementrate = 0
+    WHERE postid = v_post_id;
+    
+    COMMIT;
+END CREATE_POST;
+/
+
+CREATE OR REPLACE PROCEDURE insert_user(
+    p_userid        IN NUMBER,
+    p_username      IN VARCHAR2,
+    p_email         IN VARCHAR2,
+    p_password      IN VARCHAR2,
+    p_datejoined    IN DATE,
+    p_bio           IN VARCHAR2,
+    p_location      IN VARCHAR2,
+    p_popularityscore IN NUMBER
+)
+IS
+BEGIN
+    INSERT INTO users (USERID, USERNAME, EMAIL, PASSWORD, DATEJOINED, BIO, LOCATION, POPULARITYSCORE)
+    VALUES (p_userid, p_username, p_email, p_password, p_datejoined, p_bio, p_location, p_popularityscore);
+    COMMIT;
+END insert_user;
+/
+CREATE OR REPLACE PROCEDURE insert_userprofile(
+    p_userid           IN NUMBER,
+    p_profilepictureurl IN VARCHAR2,
+    p_websiteurl       IN VARCHAR2,
+    p_dateofbirth      IN DATE,
+    p_ispremium        IN NUMBER
+)
+IS
+BEGIN
+    INSERT INTO userprofile (USERID, PROFILEPICTUREURL, WEBSITEURL, DATEOFBIRTH, ISPREMIUM)
+    VALUES (p_userid, p_profilepictureurl, p_websiteurl, p_dateofbirth, p_ispremium);
+    COMMIT;
+END insert_userprofile;
+/
+ 
+ CREATE OR REPLACE PROCEDURE update_user_profile (
+    p_userid IN NUMBER,
     p_username IN VARCHAR2,
     p_email IN VARCHAR2,
-    p_password IN VARCHAR2,
-    p_bio IN CLOB,
-    p_location IN VARCHAR2
-) IS
+    p_bio IN VARCHAR2,
+    p_location IN VARCHAR2,
+    p_profilepictureurl IN VARCHAR2,
+    p_websiteurl IN VARCHAR2,
+    p_dateofbirth IN DATE,
+    p_ispremium IN NUMBER
+)
+AS
+    v_user_exists NUMBER;
+    v_profile_exists NUMBER;
 BEGIN
-    INSERT INTO Users (Username, Email, Password, DateJoined, Bio, Location)
-    VALUES (p_username, p_email, p_password, SYSDATE, p_bio, p_location);
+    -- Check if the user exists
+    SELECT COUNT(*) INTO v_user_exists
+    FROM USERS
+    WHERE USERID = p_userid;
+
+    IF v_user_exists = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'User not found');
+    END IF;
+
+    -- Update USERS table
+    UPDATE USERS
+    SET 
+        USERNAME = NVL(p_username, USERNAME),
+        EMAIL = NVL(p_email, EMAIL),
+        BIO = NVL(p_bio, BIO),
+        LOCATION = NVL(p_location, LOCATION)
+    WHERE USERID = p_userid;
+
+    -- Check if profile exists
+    SELECT COUNT(*) INTO v_profile_exists
+    FROM USERPROFILE
+    WHERE USERID = p_userid;
+
+    IF v_profile_exists = 0 THEN
+        -- Insert if profile does not exist
+        INSERT INTO USERPROFILE (
+            USERID, PROFILEPICTUREURL, WEBSITEURL, DATEOFBIRTH, ISPREMIUM
+        ) VALUES (
+            p_userid, p_profilepictureurl, p_websiteurl, p_dateofbirth, p_ispremium
+        );
+    ELSE
+        -- Update USERPROFILE table
+        UPDATE USERPROFILE
+        SET 
+            PROFILEPICTUREURL = NVL(p_profilepictureurl, PROFILEPICTUREURL),
+            WEBSITEURL = NVL(p_websiteurl, WEBSITEURL),
+            DATEOFBIRTH = NVL(p_dateofbirth, DATEOFBIRTH),
+            ISPREMIUM = NVL(p_ispremium, ISPREMIUM)
+        WHERE USERID = p_userid;
+    END IF;
+
     COMMIT;
-END createUserProfile;
+END update_user_profile;
 /
 
--- Procedure to Add a Post
-CREATE OR REPLACE PROCEDURE addPost(
-    p_userID IN NUMBER,
-    p_content IN CLOB
-) IS
+CREATE OR REPLACE PROCEDURE get_user_profile (
+  p_userid IN NUMBER,
+  p_result OUT SYS_REFCURSOR
+)
+IS
 BEGIN
-    INSERT INTO Post (UserID, Content, PostDate, LikesCount, CommentsCount)
-    VALUES (p_userID, p_content, SYSDATE, 0, 0);
-    COMMIT;
-END addPost;
+  OPEN p_result FOR
+    SELECT 
+      u.Username,
+      u.Email,
+      u.DateJoined,
+      u.Bio,
+      u.Location,
+      u.PopularityScore,
+      NVL(up.ProfilePictureURL, '') as ProfilePictureURL,
+      NVL(up.WebsiteURL, '') as WebsiteURL,
+      NVL(up.DateOfBirth, TO_DATE('1900-01-01', 'YYYY-MM-DD')) as DateOfBirth,
+      NVL(up.IsPremium, 0) as IsPremium
+    FROM Users u
+    LEFT JOIN UserProfile up ON u.UserID = up.UserID
+    WHERE u.UserID = p_userid;
+END get_user_profile;
 /
+show errors;
 
--- Procedure to Like a Post (Including Aggregate Function for Like Count)
-CREATE OR REPLACE PROCEDURE likePost(
-    p_userID IN NUMBER,
-    p_postID IN NUMBER
+CREATE OR REPLACE PROCEDURE CREATE_POST (
+    p_content IN VARCHAR2,
+    p_user_id IN NUMBER
 ) IS
+    v_post_id NUMBER;
 BEGIN
-    -- Insert a Like
-    INSERT INTO PostLike (UserID, PostID, LikeDate)
-    VALUES (p_userID, p_postID, SYSDATE);
-
-    -- Update the LikesCount for the post (Derived Attribute)
-    UPDATE Post
-    SET LikesCount = (SELECT COUNT(*) FROM PostLike WHERE PostID = p_postID)
-    WHERE PostID = p_postID;
+    -- First insert the post with all fields set to 0
+    INSERT INTO post(
+        content, 
+        userid, 
+        postdate, 
+        likescount, 
+        commentscount, 
+        engagementrate
+    ) VALUES (
+        p_content, 
+        p_user_id, 
+        SYSDATE, 
+        0, 
+        0, 
+        0
+    )
+    RETURNING postid INTO v_post_id;
+    
+    -- Double-check and ensure engagement rate is 0
+    UPDATE post
+    SET engagementrate = 0
+    WHERE postid = v_post_id;
     
     COMMIT;
-END likePost;
+END CREATE_POST;
 /
 
--- Procedure to Add a Comment
-CREATE OR REPLACE PROCEDURE addComment(
-    p_userID IN NUMBER,
-    p_postID IN NUMBER,
-    p_commentText IN CLOB
-) IS
-BEGIN
-    -- Insert Comment
-    INSERT INTO Comment (UserID, PostID, CommentText, CommentDate)
-    VALUES (p_userID, p_postID, p_commentText, SYSDATE);
 
-    -- Update the CommentsCount for the post (Derived Attribute)
-    UPDATE Post
-    SET CommentsCount = (SELECT COUNT(*) FROM Comment WHERE PostID = p_postID)
-    WHERE PostID = p_postID;
+-- CREATE SEQUENCE postcomment_seq START WITH 1 INCREMENT BY 1;
 
-    COMMIT;
-END addComment;
-/
 
--- Procedure to Get Total Likes and Comments for a User (Using Aggregate Functions)
-CREATE OR REPLACE PROCEDURE getUserActivity(
-    p_userID IN NUMBER
-) IS
-    v_totalLikes NUMBER;
-    v_totalComments NUMBER;
-BEGIN
-    -- Aggregate Function for Likes
-    SELECT SUM(LikesCount) INTO v_totalLikes
-    FROM Post
-    WHERE UserID = p_userID;
-
-    -- Aggregate Function for Comments
-    SELECT SUM(CommentsCount) INTO v_totalComments
-    FROM Post
-    WHERE UserID = p_userID;
-
-    -- Output the total activity (likes and comments)
-    DBMS_OUTPUT.PUT_LINE('User ' || p_userID || ' has ' || v_totalLikes || ' likes and ' || v_totalComments || ' comments.');
-END getUserActivity;
-/
-
--- Procedure to Get a User's Follower Count (Cursor to Retrieve Followed Users)
-CREATE OR REPLACE PROCEDURE getUserFollowers(
-    p_userID IN NUMBER
-) IS
-    CURSOR c_followers IS
-        SELECT FollowerUserID
-        FROM Follows
-        WHERE FollowedUserID = p_userID;
-    
-    v_followerCount NUMBER := 0;
-BEGIN
-    OPEN c_followers;
-
-    LOOP
-        FETCH c_followers INTO v_followerCount;
-        EXIT WHEN c_followers%NOTFOUND;
-        v_followerCount := v_followerCount + 1;
-    END LOOP;
-
-    CLOSE c_followers;
-    
-    -- Output the follower count
-    DBMS_OUTPUT.PUT_LINE('User ' || p_userID || ' has ' || v_followerCount || ' followers.');
-END getUserFollowers;
-/
-
--- Procedure to Generate a Report for User Activity (Using Aggregate Functions)
-CREATE OR REPLACE PROCEDURE generateUserReport(
-    p_userID IN NUMBER
-) IS
-    v_totalPosts NUMBER;
-    v_totalLikes NUMBER;
-    v_totalComments NUMBER;
-BEGIN
-    -- Aggregate Function for Total Posts
-    SELECT COUNT(*) INTO v_totalPosts
-    FROM Post
-    WHERE UserID = p_userID;
-
-    -- Aggregate Function for Total Likes
-    SELECT SUM(LikesCount) INTO v_totalLikes
-    FROM Post
-    WHERE UserID = p_userID;
-
-    -- Aggregate Function for Total Comments
-    SELECT SUM(CommentsCount) INTO v_totalComments
-    FROM Post
-    WHERE UserID = p_userID;
-
-    -- Output the report
-    DBMS_OUTPUT.PUT_LINE('User ' || p_userID || ' has ' || v_totalPosts || ' posts, ' || v_totalLikes || ' likes, and ' || v_totalComments || ' comments.');
-END generateUserReport;
-/
-
--- Procedure to Backup Data (Example using Simple Insert for Backup)
-CREATE OR REPLACE PROCEDURE backupData IS
-BEGIN
-    -- Example: Create a backup table and copy data into it (Simplified)
-    EXECUTE IMMEDIATE 'CREATE TABLE User_Backup AS SELECT * FROM Users';
-    COMMIT;
-    DBMS_OUTPUT.PUT_LINE('Backup of Users table completed.');
-END backupData;
-/
+ 

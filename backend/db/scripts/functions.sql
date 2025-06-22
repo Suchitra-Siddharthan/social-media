@@ -1,50 +1,24 @@
--- Function to Get the Total Number of Posts by a User
-CREATE OR REPLACE FUNCTION getUserPostCount(
-    p_userID IN NUMBER
-) RETURN NUMBER IS
-    v_postCount NUMBER;
+CREATE OR REPLACE FUNCTION Get_User_With_Max_Popularity
+RETURN NUMBER IS
+    CURSOR user_cursor IS
+        SELECT UserID
+        FROM Users
+        WHERE PopularityScore = (SELECT MAX(PopularityScore) FROM Users)
+        ORDER BY UserID;
+    
+    max_user_id NUMBER;
 BEGIN
-    -- Aggregate Function to count total posts for a user
-    SELECT COUNT(*) INTO v_postCount
-    FROM Post
-    WHERE UserID = p_userID;
-
-    RETURN v_postCount;
-END getUserPostCount;
+    OPEN user_cursor;
+    FETCH user_cursor INTO max_user_id;
+    CLOSE user_cursor;
+    
+    RETURN max_user_id;
+END Get_User_With_Max_Popularity;
 /
 
--- Function to Get the Total Number of Likes on a Post
-CREATE OR REPLACE FUNCTION getPostLikeCount(
-    p_postID IN NUMBER
-) RETURN NUMBER IS
-    v_likeCount NUMBER;
-BEGIN
-    -- Aggregate Function to count total likes for a post
-    SELECT COUNT(*) INTO v_likeCount
-    FROM PostLike
-    WHERE PostID = p_postID;
 
-    RETURN v_likeCount;
-END getPostLikeCount;
-/
 
--- Function to Get the Total Number of Comments on a Post
-CREATE OR REPLACE FUNCTION getPostCommentCount(
-    p_postID IN NUMBER
-) RETURN NUMBER IS
-    v_commentCount NUMBER;
-BEGIN
-    -- Aggregate Function to count total comments for a post
-    SELECT COUNT(*) INTO v_commentCount
-    FROM Comment
-    WHERE PostID = p_postID;
-
-    RETURN v_commentCount;
-END getPostCommentCount;
-/
-
--- Function to Get the Engagement Score of a User (Based on Posts, Likes, and Comments)
-CREATE OR REPLACE FUNCTION calculateUserEngagement(
+CREATE OR REPLACE FUNCTION calculateUserPopularity(
     p_userID IN NUMBER
 ) RETURN NUMBER IS
     v_postCount NUMBER;
@@ -58,89 +32,37 @@ BEGIN
     SELECT SUM(CommentsCount) INTO v_commentCount FROM Post WHERE UserID = p_userID;
 
     -- Calculate an engagement score based on total posts, likes, and comments
-    v_engagementScore := (v_postCount * 0.5) + (v_likeCount * 0.3) + (v_commentCount * 0.2);
+    v_engagementScore := (v_likeCount * 0.3) + (v_commentCount * 0.2);
 
     RETURN v_engagementScore;
 END calculateUserEngagement;
 /
 
--- Function to Get a List of Followers for a User (Using Cursor)
-CREATE OR REPLACE FUNCTION getUserFollowersList(
-    p_userID IN NUMBER
-) RETURN SYS_REFCURSOR IS
-    v_followersCursor SYS_REFCURSOR;
+CREATE OR REPLACE FUNCTION Get_Post_With_Max_Engagement
+RETURN NUMBER IS
+    max_post_id NUMBER;
 BEGIN
-    -- Cursor to retrieve all followers of a user
-    OPEN v_followersCursor FOR
-        SELECT FollowerUserID
-        FROM Follows
-        WHERE FollowedUserID = p_userID;
+    -- Query to find the PostID with the maximum calculated engagement rate
+    SELECT PostID INTO max_post_id
+    FROM (
+        SELECT PostID, (LikesCount * 0.6) + (CommentsCount * 0.4) as calculated_engagement
+        FROM Post
+        ORDER BY calculated_engagement DESC
+    )
+    WHERE ROWNUM = 1;
 
-    RETURN v_followersCursor;
-END getUserFollowersList;
+    RETURN max_post_id;
+END Get_Post_With_Max_Engagement;
 /
-
--- Function to Check if a User Exists by Email
-CREATE OR REPLACE FUNCTION checkUserExistsByEmail(
-    p_email IN VARCHAR2
-) RETURN NUMBER IS
-    v_count NUMBER;
+ CREATE OR REPLACE FUNCTION calculatePostEngagement(p_postID IN NUMBER) RETURN NUMBER IS
+    v_likes NUMBER := 0;
+    v_comments NUMBER := 0;
+    v_score NUMBER := 0;
 BEGIN
-    -- Function to check if a user exists by email (using COUNT as aggregate)
-    SELECT COUNT(*) INTO v_count
-    FROM Users
-    WHERE Email = p_email;
+    SELECT COUNT(*) INTO v_likes FROM PostLike WHERE PostID = p_postID;
+    SELECT COUNT(*) INTO v_comments FROM PostComment WHERE PostID = p_postID;
 
-    -- Return 1 if the user exists, otherwise 0
-    IF v_count > 0 THEN
-        RETURN 1;
-    ELSE
-        RETURN 0;
-    END IF;
-END checkUserExistsByEmail;
-/
-
--- Function to Get the Total Number of Followers for a User
-CREATE OR REPLACE FUNCTION getUserFollowerCount(
-    p_userID IN NUMBER
-) RETURN NUMBER IS
-    v_followerCount NUMBER;
-BEGIN
-    -- Aggregate Function to count total followers for a user
-    SELECT COUNT(*) INTO v_followerCount
-    FROM Follows
-    WHERE FollowedUserID = p_userID;
-
-    RETURN v_followerCount;
-END getUserFollowerCount;
-/
-
--- Function to Get the Total Number of Posts with a Specific Hashtag (Using Aggregate)
-CREATE OR REPLACE FUNCTION getHashtagPostCount(
-    p_hashtagText IN VARCHAR2
-) RETURN NUMBER IS
-    v_hashtagCount NUMBER;
-BEGIN
-    -- Aggregate Function to count total posts with a specific hashtag
-    SELECT COUNT(*) INTO v_hashtagCount
-    FROM PostHashtag
-    WHERE HashtagID = (SELECT HashtagID FROM Hashtag WHERE HashtagText = p_hashtagText);
-
-    RETURN v_hashtagCount;
-END getHashtagPostCount;
-/
-
--- Function to Get a User's Last Post Date
-CREATE OR REPLACE FUNCTION getUserLastPostDate(
-    p_userID IN NUMBER
-) RETURN TIMESTAMP IS
-    v_lastPostDate TIMESTAMP;
-BEGIN
-    -- Query to fetch the latest post date for a user
-    SELECT MAX(PostDate) INTO v_lastPostDate
-    FROM Post
-    WHERE UserID = p_userID;
-
-    RETURN v_lastPostDate;
-END getUserLastPostDate;
+    v_score := (v_likes * 0.6) + (v_comments * 0.4);
+    RETURN v_score;
+END;
 /

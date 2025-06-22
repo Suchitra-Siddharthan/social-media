@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import Login from './components/Login';
-import Register from './components/Register';
-import Feed from './components/Feed';
-import Post from './components/Post';
-import Profile from './components/Profile';
-import Admin from './components/Admin';
+import Login from './components/login.jsx';
+import Register from './components/register.jsx';
+import Feed from './components/feed.jsx'
+import Post from './components/post.jsx';
+import Profile from './components/profile.jsx';
+import Admin from './components/admin.jsx';
 
 function App() {
   return (
