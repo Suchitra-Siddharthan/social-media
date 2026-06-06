@@ -1,0 +1,155 @@
+/* index.css or app.css */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+body {
+  font-family: 'Poppins', 'Montserrat', sans-serif;
+}
+
+
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+body{
+  width: 100%;
+  ;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+/* Default like button style */
+
+.profile-picture {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.profile-picture-placeholder {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-weight: bold;
+}
+
+/* 1. Global box-sizing */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 2. Prevent any horizontal overflow */
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* 3. Constrain your “page” containers */
+.feed-container,
+.profile-container,
+.login-container,
+.register-container {
+  width: min(90%, 800px);
+  margin: 0 auto;
+  padding: 1rem;
+  overflow-x: hidden;
+}
+
+/* 4. Force all form controls & text areas to never exceed their parent */
+input,
+textarea,
+select,
+button {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 5. Specific overrides for your classes */
+.form-input,
+.comment-input,
+.profile-field input,
+.profile-field textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 6. Handle flex container children */
+.feed-actions,
+.form-actions,
+.add-comment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.feed-actions > *,
+.form-actions > *,
+.add-comment > * {
+  flex: 1 1 auto;
+  min-width: 0;  /* critical to allow children to shrink */
+}
+
+/* 7. Wrap long words or URLs */
+.feed-container,
+.profile-container,
+.login-container,
+.register-container,
+.post-card,
+.new-post-form,
+.comment-section {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* 8. Constrain textarea resizing */
+textarea {
+  resize: vertical;
+}

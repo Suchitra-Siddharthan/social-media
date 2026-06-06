@@ -1,0 +1,25 @@
+# Node.js dependencies
+node_modules/
+
+# Vite build output
+/dist/
+
+# Log files
+*.log
+
+# OS-specific files
+.DS_Store      # macOS
+Thumbs.db      # Windows
+
+# Temporary files from IDEs
+.vscode/
+.idea/
+
+# Environment variables and sensitive files
+.env           # If you have any environment variables file
+
+# Oracle Instant Client or other external dependencies
+oracle/
+
+# Backup files
+*.bak
