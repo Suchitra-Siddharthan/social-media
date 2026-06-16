@@ -1,16 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+
 
 const Admin = () => {
   const [report, setReport] = useState(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
 
+  useEffect(()=>{
+      fetchReport();
+    },[]);
+
   // Fetch report data
   const fetchReport = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/report');
+      const response=await axios.get('http://localhost:3000/api/report',{
+        headers:{
+          Authorization:`Bearer ${localStorage.getItem('token')}`
+        }
+      });
       if (response.data.success) {
-        setReport(response.data.report);
+        setReport(response.data);
       } else {
         console.error('❌ Failed to fetch report');
       }
@@ -19,19 +28,11 @@ const Admin = () => {
     }
   };
 
-  // Perform backup
-  const handleBackup = async () => {
-    setIsBackingUp(true);
-    try {
-      await axios.post('http://localhost:5000/api/backup');
-      alert('✅ Backup Completed Successfully');
-    } catch (error) {
-      alert('❌ Backup Failed');
-      console.error('❌ Backup Error:', error);
-    } finally {
-      setIsBackingUp(false);
-    }
-  };
+  const logout=()=>{
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href='/';
+    };
 
   // Download the report as a CSV
   const handleDownload = () => {
@@ -52,33 +53,23 @@ const Admin = () => {
   return (
     <div>
       <h2>Admin Dashboard</h2>
-      <button onClick={handleBackup} disabled={isBackingUp}>
-        {isBackingUp ? 'Backing Up...' : 'Backup Data'}
-      </button>
+      <button onClick={logout}>Logout</button>
       <button onClick={fetchReport}>Generate Report</button>
 
       {report && (
         <div>
-          <h3>Report</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Total Users</th>
-                <th>User with Highest Popularity</th>
-                <th>Post with Highest Engagement</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{report.totalUsers}</td>
-                <td>{report.userWithHighestPopularity.username}</td>
-                <td>{report.postWithHighestEngagement.title}</td>
-              </tr>
-            </tbody>
-          </table>
-          <button onClick={handleDownload}>Download Report</button>
+          <h3>Total Users: {report.totalUsers}</h3>
+          <h3>Total Posts: {report.totalPosts}</h3>
+          <h3>Total Likes: {report.totalLikes}</h3>
+          <h3>Total Comments: {report.totalComments}</h3>
+        
+          <h3>Most Popular User</h3>
+          <p>{report.maxPopularityUser?.Username}</p>
+        
+          <h3>Highest Engagement Post</h3>
+          <p>{report.maxEngagementPost?.Content}</p>
         </div>
-      )}
+        )}
     </div>
   );
 };
