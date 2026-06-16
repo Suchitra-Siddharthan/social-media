@@ -2,6 +2,11 @@ const express = require('express');
 const oracledb = require('oracledb');
 const cors = require('cors');
 const dbConfig = require('./db');
+const bcrypt=require('bcrypt');
+const jwt=require('jsonwebtoken');
+
+const JWT_SECRET='socialmedia_secret_key';
+const ADMIN_USERNAME='admin';
 
 const app = express();
 const PORT = 3000;
@@ -78,6 +83,27 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
+//jwt middleware
+function verifyToken(req,res,next){
+  const authHeader=req.headers.authorization;
+  if(!authHeader)return res.status(401).json({success:false,message:'Access denied'});
+  const token=authHeader.split(' ')[1];
+  try{
+    req.user=jwt.verify(token,JWT_SECRET);
+    next();
+  }catch(err){
+    return res.status(403).json({success:false,message:'Invalid or expired token'});
+  }
+}
+
+//admin middleware
+function verifyAdmin(req,res,next){
+  if(req.user.role!=='admin'){
+    return res.status(403).json({success:false,message:'Admin access only'});
+  }
+  next();
+}
+
 // Login Route
 // Login Route - Updated with more debugging
 app.post('/api/login', async (req, res) => {
@@ -98,22 +124,56 @@ app.post('/api/login', async (req, res) => {
     // Log the actual query being executed
     console.log(`Executing: SELECT UserID, Username, Email FROM Users WHERE Username = '${username}' AND Password = '${password}'`);
 
-    const result = await connection.execute(
-      `SELECT UserID, Username, Email FROM Users 
-       WHERE Username = :username AND Password = :password`,
-      [username, password]
+    const result=await connection.execute(
+      `SELECT UserID,Username,Email,Password FROM Users WHERE Username=:username`,
+      [username]
     );
 
     console.log('Query results:', result.rows); // Log the results
 
-    if (result.rows.length > 0) {
-      const user = {
-        id: result.rows[0][0],
-        username: result.rows[0][1],
-        email: result.rows[0][2]
-      };
-      res.json({ success: true, user });
-    } else {
+    if(result.rows.length===0){
+      return res.status(401).json({
+        success:false,
+        message:'Invalid credentials'
+      });
+    }
+    
+    const isMatch=await bcrypt.compare(password,result.rows[0][3]);
+    
+    if(!isMatch){
+      return res.status(401).json({
+        success:false,
+        message:'Invalid credentials'
+      });
+    }
+    
+    const role=username===ADMIN_USERNAME?'admin':'user';
+    
+    const token=jwt.sign(
+      {
+        userId:result.rows[0][0],
+        username:result.rows[0][1],
+        role
+      },
+      JWT_SECRET,
+      {expiresIn:'1d'}
+    );
+    
+    const user={
+      id:result.rows[0][0],
+      username:result.rows[0][1],
+      email:result.rows[0][2],
+      role
+    };
+    
+    res.json({
+      success:true,
+      token,
+      role,
+      user
+    });
+    
+    else {
       res.status(401).json({ 
         success: false, 
         message: 'Invalid credentials' 
@@ -165,9 +225,11 @@ app.post('/api/register', async (req, res) => {
     }
 
     // Insert new user
+    const hashedPassword=await bcrypt.hash(password,10);
+    
     await connection.execute(
       `BEGIN insert_user(:userid,:username,:email,:password,SYSDATE,NULL,NULL,0); END;`,
-      {userid:null,username,email,password}
+      {userid:null,username,email,password:hashedPassword}
     );
     res.json({ 
       success: true, 
@@ -676,7 +738,7 @@ app.post('/api/backup', async (req, res) => {
 });
 
 //report route
-app.get('/api/report', async (req, res) => {
+app.get('/api/report', verifyToken, verifyAdmin, async (req, res) => {
   let connection;
   try {
     connection = await getConnection();
@@ -686,6 +748,9 @@ app.get('/api/report', async (req, res) => {
       `SELECT COUNT(*) AS total_users FROM Users`
     );
     const totalUsers = totalUsersResult.rows[0][0];
+    const totalPosts=(await connection.execute(`SELECT COUNT(*) FROM Post`)).rows[0][0];
+    const totalLikes=(await connection.execute(`SELECT COUNT(*) FROM PostLike`)).rows[0][0];
+    const totalComments=(await connection.execute(`SELECT COUNT(*) FROM PostComment`)).rows[0][0];
 
     // Get user with max popularity
     let maxPopularityUser = null;
@@ -753,8 +818,11 @@ app.get('/api/report', async (req, res) => {
     }
 
     res.json({
-      success: true,
+      success:true,
       totalUsers,
+      totalPosts,
+      totalLikes,
+      totalComments,
       maxPopularityUser,
       maxEngagementPost
     });
